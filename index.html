@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>體重擂台賽 · 減重友誼賽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF1F6;
+    --surface:#FFFFFF;
+    --surface-2:#F7F8FB;
+    --ink:#1A2130;
+    --ink-soft:#5B6472;
+    --ink-faint:#9AA3B2;
+    --line:#DCE2EC;
+    --gold:#E8A33D;
+    --action:#2F5FE0;
+    --action-ink:#FFFFFF;
+    --good:#1FA98C;
+    --warn:#C9762F;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(20,30,50,.05), 0 8px 24px rgba(20,30,50,.07);
+    --font-display:'Bebas Neue', sans-serif;
+    --font-body:'Inter', system-ui, -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    --font-mono:'JetBrains Mono', ui-monospace, monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  #root{ max-width:900px; margin:0 auto; padding:20px 16px 60px; }
+
+  a, button{ font-family:inherit; }
+  button{ cursor:pointer; }
+
+  .empty{ color:var(--ink-faint); font-size:14px; padding:8px 0; }
+  .error-text{ color:var(--warn); }
+  .hint{ color:var(--ink-faint); font-size:12.5px; margin:6px 0 0; }
+
+  .hero{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+    flex-wrap:wrap; padding:8px 4px 20px;
+  }
+  .eyebrow{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; }
+  .title{ font-family:var(--font-display); font-size:clamp(38px,8vw,58px); letter-spacing:.02em; margin:2px 0 0; line-height:.95; }
+  .countdown{
+    position:relative; background:var(--ink); color:#fff; border-radius:var(--radius);
+    padding:10px 22px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow);
+  }
+  .countdown-num{ font-family:var(--font-display); font-size:44px; line-height:1; color:var(--gold); }
+  .countdown-label{ font-size:12px; color:#D7DCE8; line-height:1.35; }
+  .cd-sub{ color:#8F98AC; }
+  .refresh-btn{
+    position:absolute; top:-10px; right:-10px;
+    background:var(--surface); border:1px solid var(--line); border-radius:50%;
+    width:30px; height:30px; font-size:14px;
+    display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
+  }
+
+  .pulse{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 20px; }
+  .pulse-item b{ color:var(--ink); font-family:var(--font-mono); }
+  .pulse-dot{ color:var(--ink-faint); }
+
+  .podium{ display:flex; align-items:flex-end; justify-content:center; gap:14px; margin:0 0 24px; }
+  .podium-block{ background:var(--pc); color:#fff; width:130px; text-align:center; border-radius:14px 14px 6px 6px; padding:16px 10px; box-shadow:var(--shadow); }
+  .podium-block.h1{ padding-top:28px; padding-bottom:28px; order:2; }
+  .podium-block.h2{ padding-top:16px; padding-bottom:16px; order:1; opacity:.94; }
+  .podium-block.h3{ padding-top:10px; padding-bottom:10px; order:3; opacity:.88; }
+  .pb-medal{ font-size:26px; }
+  .pb-name{ font-weight:700; margin-top:4px; font-size:14px; }
+  .pb-percent{ font-family:var(--font-mono); font-size:14px; margin-top:4px; opacity:.95; }
+
+  .card{ background:var(--surface); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:16px; }
+  .card h2{ font-family:var(--font-display); font-size:22px; letter-spacing:.02em; margin:0 0 14px; font-weight:normal; }
+
+  .form-row{ margin-bottom:12px; }
+  .form-row label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
+  input[type=text], input[type=number]{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px;
+    font-size:14.5px; font-family:var(--font-body); background:var(--surface-2); color:var(--ink);
+  }
+  input:focus{ outline:2px solid var(--action); outline-offset:1px; }
+  .btn{ background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:10px 18px; border-radius:9px; font-size:14px; font-weight:600; }
+  .btn-primary{ background:var(--action); color:var(--action-ink); border-color:var(--action); }
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex-shrink:0; }
+
+  .pl-good{ color:var(--good); }
+  .pl-warn{ color:var(--warn); }
+  .pl-flat{ color:var(--ink-faint); }
+
+  .lb-head{
+    display:grid; grid-template-columns:32px 1fr 74px 74px 86px 96px;
+    gap:10px; font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;
+    padding:0 4px 8px; border-bottom:1px solid var(--line);
+  }
+  .lb-row{
+    display:grid; grid-template-columns:32px 1fr 74px 74px 86px 96px;
+    gap:10px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line);
+  }
+  .lb-row:last-child{ border-bottom:none; }
+  .lb-rank{ font-family:var(--font-mono); font-weight:700; color:var(--ink-soft); }
+  .lb-name{ display:flex; align-items:center; gap:8px; min-width:0; }
+  .lb-name .dot{ margin-top:3px; }
+  .lb-name-text{ font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badges{ display:flex; gap:3px; margin-top:2px; font-size:12px; }
+  .goal-line{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .goal-line.goal-hit{ color:var(--good); font-weight:600; }
+  .lb-weight{ font-family:var(--font-mono); font-size:14px; white-space:nowrap; }
+  .lb-weight .unit{ color:var(--ink-faint); font-size:11px; margin-left:2px; }
+  .lb-percent{ font-family:var(--font-mono); font-size:14.5px; font-weight:700; }
+  .lb-spark{ line-height:0; }
+  .spark{ width:72px; height:24px; }
+  .spark-empty{ color:var(--ink-faint); font-size:13px; }
+  .status-tag{ font-size:11px; padding:3px 8px; border-radius:999px; white-space:nowrap; background:var(--surface-2); color:var(--ink-soft); }
+  .tag-good{ background:#E4F5F1; color:var(--good); }
+
+  .chart-svg{ width:100%; height:auto; display:block; }
+  .axis-label{ font-family:var(--font-mono); font-size:10px; fill:var(--ink-faint); }
+  .legend{ display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
+  .legend-item i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  .feed-item{ display:flex; gap:10px; padding:12px 4px; border-bottom:1px solid var(--line); }
+  .feed-item:last-child{ border-bottom:none; }
+  .feed-item .dot{ margin-top:5px; }
+  .feed-body{ min-width:0; flex:1; }
+  .feed-line{ font-size:14px; }
+  .feed-diff{ font-family:var(--font-mono); color:var(--ink-soft); font-size:13px; }
+  .feed-tag{ font-size:11.5px; padding:2px 8px; border-radius:999px; margin-left:4px; }
+  .feed-tag.good{ background:#E4F5F1; color:var(--good); }
+  .feed-note{ font-size:13px; color:var(--ink-soft); margin-top:2px; font-style:italic; }
+
+  .table-scroll{ overflow-x:auto; }
+  .daily-table{ border-collapse:collapse; width:100%; font-size:13.5px; white-space:nowrap; }
+  .daily-table th, .daily-table td{ padding:8px 14px; text-align:center; border-bottom:1px solid var(--line); }
+  .daily-table th{ font-size:12px; text-transform:uppercase; letter-spacing:.03em; font-weight:700; }
+  .daily-table td{ font-family:var(--font-mono); }
+  .dt-date{ position:sticky; left:0; background:var(--surface); font-family:var(--font-body); font-weight:600; text-align:left; color:var(--ink-soft); }
+  .cell-empty{ color:var(--ink-faint); font-family:var(--font-body); }
+
+  footer{ text-align:center; font-size:12px; color:var(--ink-faint); padding:20px 10px 0; line-height:1.7; }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translate(-50%,20px);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:999px;
+    font-size:13.5px; opacity:0; pointer-events:none; transition:all .25s ease; z-index:9999; box-shadow:var(--shadow);
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  .confetti-layer{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:9998; }
+  .confetti-piece{
+    position:absolute; top:-12px; width:8px; height:14px; opacity:.95;
+    animation-name:confetti-fall; animation-timing-function:linear; animation-fill-mode:forwards;
+  }
+  @keyframes confetti-fall{
+    to{ transform:translateY(110vh) rotate(var(--r)); opacity:0; }
+  }
+
+  @media (max-width:640px){
+    .lb-head{ display:none; }
+    .lb-row{ grid-template-columns:26px 1fr 64px 64px; }
+    .lb-spark, .lb-status{ display:none; }
+    .podium-block{ width:100px; padding-left:6px; padding-right:6px; }
+    .countdown{ padding:8px 16px; }
+    .countdown-num{ font-size:34px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ---------- config ----------
+const SHEET_ID = "1k7F3M402dBDqpNhNf3PaWBrujWqukrlK8g-EzKlDaBc";
+const GID = "1436494098";
+const FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSdVctJGYFdTVHFI5hQB62-S4ztcvIGwnkGx0SUso5Zk4RwrYQ/formResponse";
+const ENTRY_NAME = "entry.273620209";
+const ENTRY_WEIGHT = "entry.1457224047";
+const ENTRY_GOAL = "entry.1093281719";
+const ENTRY_NOTE = "entry.1303953867";
+const COMP_END = "2026-10-31";
+const COLORS = ['#F2604B','#1FA98C','#7C5CFC','#9CC93B','#2FA6D9','#EF5DA8','#E8A33D','#5B85B8'];
+
+const state = {
+  loading: true,
+  entries: [],
+  participants: [],
+  lastName: '',
+  error: null,
+};
+
+const root = document.getElementById('root');
+
+function escapeHtml(str){
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtW(n){ return (Math.round(n*10)/10).toFixed(1); }
+
+// Google's own gviz endpoint returns JSONP (a <script> tag can load it fine).
+// This avoids the CORS restriction that blocks a plain fetch() against the
+// "publish to web" CSV link.
+function parseGvizDate(v){
+  if(v == null) return null;
+  const s = String(v);
+  const m = s.match(/Date\((\d+),(\d+),(\d+)/); // gviz dates: Date(year,monthIndex0,day,...)
+  if(m) return { y: parseInt(m[1],10), m: parseInt(m[2],10)+1, d: parseInt(m[3],10) };
+  const m2 = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if(m2) return { y: parseInt(m2[1],10), m: parseInt(m2[2],10), d: parseInt(m2[3],10) };
+  return null;
+}
+
+function processGvizResponse(json){
+  const cols = (json.table && json.table.cols) || [];
+  const rows = (json.table && json.table.rows) || [];
+  const idxByLabel = {};
+  cols.forEach((c,i)=>{ if(c.label) idxByLabel[c.label.trim()] = i; });
+  const iTs = idxByLabel['時間戳記'] ?? 0;
+  const iName = idxByLabel['你的名字'] ?? 1;
+  const iWeight = idxByLabel['今天體重 (kg)'] ?? 2;
+  const iGoal = (idxByLabel['目標體重 (kg)'] ?? -1);
+  const iNote = idxByLabel['備註'] ?? (cols.length - 1);
+
+  const entries = [];
+  rows.forEach(r=>{
+    const cells = (r && r.c) || [];
+    const get = (i)=> (i>=0 && cells[i]) ? cells[i].v : null;
+    const name = (get(iName) == null ? '' : String(get(iName))).trim();
+    const weightRaw = get(iWeight);
+    const weight = typeof weightRaw === 'number' ? weightRaw : parseFloat(weightRaw);
+    if(!name || isNaN(weight)) return;
+    const goalRaw = iGoal >= 0 ? get(iGoal) : null;
+    const goalNum = typeof goalRaw === 'number' ? goalRaw : parseFloat(goalRaw);
+    const goal = (goalRaw == null || goalRaw === '' || isNaN(goalNum)) ? null : goalNum;
+    const note = (get(iNote) == null ? '' : String(get(iNote))).trim();
+    const d = parseGvizDate(get(iTs));
+    const dateKey = d ? `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}` : 'unknown';
+    entries.push({ name, weight, goal, note, dateKey });
+  });
+  return entries;
+}
+
+function dateLabelOf(key){
+  if(key === 'unknown') return '日期未知';
+  const [,mo,da] = key.split('-');
+  return `${parseInt(mo,10)}/${parseInt(da,10)}`;
+}
+function buildDailyRecords(entries){
+  const map = {};
+  entries.forEach(e=>{
+    const key = e.dateKey || 'unknown';
+    if(!map[key]) map[key] = {};
+    map[key][e.name] = e.weight;
+  });
+  const keys = Object.keys(map).filter(k=>k!=='unknown').sort().reverse();
+  if(map.unknown) keys.push('unknown');
+  return { keys, map };
+}
+
+
+function computeParticipants(entries){
+  const order = [];
+  const seen = {};
+  entries.forEach(e=>{
+    if(!seen[e.name]){ seen[e.name] = true; order.push(e.name); }
+  });
+  return order.map((name,i)=> ({ name, color: COLORS[i % COLORS.length] }));
+}
+function entriesFor(entries, name){
+  return entries.filter(e=>e.name===name);
+}
+function currentWeight(entries, name){
+  const es = entriesFor(entries, name);
+  return es.length ? es[es.length-1].weight : null;
+}
+function startWeight(entries, name){
+  const es = entriesFor(entries, name);
+  return es.length ? es[0].weight : null;
+}
+function percentLost(entries, name){
+  const s = startWeight(entries, name), c = currentWeight(entries, name);
+  if(s == null || c == null || !s) return 0;
+  return ((s - c) / s) * 100;
+}
+function percentLabel(val){
+  if(Math.abs(val) < 0.05) return {text:'持平', cls:'pl-flat'};
+  if(val > 0) return {text:`↓ ${val.toFixed(1)}%`, cls:'pl-good'};
+  return {text:`↑ ${Math.abs(val).toFixed(1)}%`, cls:'pl-warn'};
+}
+function goalWeightFor(entries, name){
+  const es = entriesFor(entries, name).filter(e=> e.goal != null);
+  return es.length ? es[es.length-1].goal : null; // most recently submitted goal
+}
+function isGoalReached(entries, name){
+  const g = goalWeightFor(entries, name);
+  const c = currentWeight(entries, name);
+  return g != null && c != null && c <= g;
+}
+function goalLineFor(entries, name){
+  const g = goalWeightFor(entries, name);
+  if(g == null) return '';
+  if(isGoalReached(entries, name)) return `<div class="goal-line goal-hit">🎯 已達標！(目標 ${fmtW(g)} kg)</div>`;
+  const diff = (currentWeight(entries, name) - g).toFixed(1);
+  return `<div class="goal-line">🎯 距目標還差 ${diff} kg</div>`;
+}
+function badgesFor(entries, name, rankedList){
+  const es = entriesFor(entries, name);
+  const list = [];
+  if(es.length >= 1) list.push({icon:'🚀', label:'已起跑'});
+  if(es.length >= 3) list.push({icon:'🔥', label:'連續打卡'});
+  const pl = percentLost(entries, name);
+  if(pl >= 5) list.push({icon:'💪', label:'減重 5% 達成'});
+  if(isGoalReached(entries, name)) list.push({icon:'🎯', label:'達成目標體重'});
+  if(rankedList.length && rankedList[0] === name && es.length > 0) list.push({icon:'👑', label:'目前擂主'});
+  return list;
+}
+
+function sparkline(es, color){
+  if(es.length<2) return `<span class="spark-empty">—</span>`;
+  const ws = es.map(e=>e.weight);
+  const min = Math.min(...ws), max = Math.max(...ws);
+  const range = (max-min) || 1;
+  const w=72, h=24, pad=3;
+  const pts = ws.map((wt,i)=>{
+    const x = pad + (i/(ws.length-1)) * (w-2*pad);
+    const y = pad + (1-((wt-min)/range)) * (h-2*pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function loadData(manual){
+  return new Promise((resolve)=>{
+    const cbName = '__gvizCb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
+    let done = false;
+    let scriptEl = null;
+
+    const finish = (errMsg)=>{
+      if(done) return;
+      done = true;
+      clearTimeout(timeoutId);
+      state.error = errMsg || null;
+      state.loading = false;
+      renderAll();
+      if(manual) showToast(state.error ? '更新失敗' : '已更新最新戰況');
+      delete window[cbName];
+      if(scriptEl && scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
+      resolve();
+    };
+
+    const timeoutId = setTimeout(()=>{
+      finish('讀取排行榜資料逾時，請檢查網路或稍後再試。');
+    }, 10000);
+
+    window[cbName] = function(json){
+      try{
+        if(json.status === 'error'){
+          throw new Error((json.errors && json.errors[0] && json.errors[0].detailed_message) || 'gviz error');
+        }
+        state.entries = processGvizResponse(json);
+        state.participants = computeParticipants(state.entries);
+        finish(null);
+      }catch(e){
+        console.error(e);
+        finish('讀取排行榜資料失敗，請確認試算表「共用」設定為「知道連結的任何人」可檢視。');
+      }
+    };
+
+    scriptEl = document.createElement('script');
+    scriptEl.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${GID}&headers=1&tqx=out:json;responseHandler:${cbName}&_=${Date.now()}`;
+    scriptEl.onerror = ()=> finish('讀取排行榜資料失敗（連線錯誤），請稍後再試。');
+    document.body.appendChild(scriptEl);
+  });
+}
+
+function submitCheckin(name, weight, goal, note){
+  name = (name||'').trim().slice(0,20);
+  const w = parseFloat(weight);
+  if(!name){ showToast('請輸入名字'); return; }
+  if(isNaN(w) || w<=0 || w>400){ showToast('請輸入正確的體重數字'); return; }
+  const g = parseFloat(goal);
+  const wasReached = isGoalReached(state.entries, name);
+  document.getElementById('f_name').value = name;
+  document.getElementById('f_weight').value = w;
+  document.getElementById('f_goal').value = (!isNaN(g) && g>0) ? g : '';
+  document.getElementById('f_note').value = (note||'').slice(0,300);
+  state.lastName = name;
+  document.getElementById('gform').submit();
+  showToast('送出中…稍等幾秒讓試算表更新');
+  setTimeout(async ()=>{ await loadData(false); checkGoalCelebration(name, wasReached); }, 4000);
+  setTimeout(()=> loadData(false), 9000);
+}
+
+function checkGoalCelebration(name, wasReached){
+  if(!wasReached && isGoalReached(state.entries, name)){
+    triggerConfetti();
+    showToast('🎉 恭喜達成目標體重！');
+  }
+}
+
+function buildShell(){
+  root.innerHTML = `
+    <div class="toast" id="toast"></div>
+    <div class="confetti-layer" id="confetti"></div>
+
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+    <form id="gform" action="${FORM_ACTION}" method="POST" target="hidden_iframe" style="display:none;">
+      <input type="text" id="f_name" name="${ENTRY_NAME}">
+      <input type="text" id="f_weight" name="${ENTRY_WEIGHT}">
+      <input type="text" id="f_goal" name="${ENTRY_GOAL}">
+      <input type="text" id="f_note" name="${ENTRY_NOTE}">
+    </form>
+
+    <header class="hero">
+      <div class="hero-top">
+        <span class="eyebrow">好友減重友誼賽</span>
+        <h1 class="title">🥊 體重擂台賽</h1>
+      </div>
+      <div class="countdown">
+        <button type="button" class="refresh-btn" data-action="refresh" title="重新整理">🔄</button>
+        <div class="countdown-num" id="cdDays">--</div>
+        <div class="countdown-label">天後封榜<br><span class="cd-sub">封榜日 2026/10/31</span></div>
+      </div>
+    </header>
+
+    <section class="pulse" id="pulse">載入中...</section>
+    <section class="podium" id="podium"></section>
+
+    <section class="card">
+      <h2>打卡回報</h2>
+      <form data-action="submit-checkin" class="checkin-form">
+        <div class="form-row">
+          <label>你的名字</label>
+          <input name="name" type="text" list="nameList" maxlength="20" required placeholder="第一次來？打你的名字就好">
+          <datalist id="nameList"></datalist>
+        </div>
+        <div class="form-row"><label>今天體重 (kg)</label><input name="weight" type="number" step="0.1" min="20" max="400" required></div>
+        <div class="form-row"><label>目標體重 (kg)・第一次填就好，之後留空即可</label><input name="goal" type="number" step="0.1" min="20" max="400" placeholder="設定一次，之後可以不填"></div>
+        <div class="form-row"><label>備註・選填</label><input name="note" type="text" maxlength="140" placeholder="今天狀況如何？"></div>
+        <button type="submit" class="btn btn-primary">打卡回報</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>擂台排行榜</h2>
+      <div class="lb-head">
+        <div>排名</div><div>選手</div><div>體重</div><div>幅度</div><div>趨勢</div><div>狀態</div>
+      </div>
+      <div id="leaderboardList"></div>
+    </section>
+
+    <section class="card">
+      <h2>戰況曲線</h2>
+      <div id="chartBox"></div>
+    </section>
+
+    <section class="card">
+      <h2>每日紀錄表</h2>
+      <div id="dailyTable" class="table-scroll"></div>
+    </section>
+
+    <section class="card">
+      <h2>擂台動態</h2>
+      <div id="feedList"></div>
+    </section>
+
+    <footer>
+      資料來自大家共用的 Google 表單，任何人有連結就能打卡，不需要任何帳號 · 封榜日 2026/10/31 · 排名依體重下降百分比計算<br>
+      更新後資料同步可能需要一點時間，看到資料沒變先按左上角 🔄 重新整理看看
+    </footer>
+  `;
+  root.addEventListener('click', handleClick);
+  root.addEventListener('submit', handleSubmit);
+}
+
+function handleClick(e){
+  const btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  if(btn.dataset.action === 'refresh') loadData(true);
+}
+function handleSubmit(e){
+  const form = e.target.closest('form[data-action="submit-checkin"]');
+  if(!form) return;
+  e.preventDefault();
+  const fd = new FormData(form);
+  submitCheckin(fd.get('name'), fd.get('weight'), fd.get('goal'), fd.get('note'));
+  form.reset();
+}
+
+function renderAll(){
+  renderPulse();
+  renderPodium();
+  renderNameList();
+  renderLeaderboard();
+  renderChart();
+  renderDailyTable();
+  renderFeed();
+}
+
+function renderPulse(){
+  const el = document.getElementById('pulse');
+  if(state.error){ el.innerHTML = `<div class="pulse-item error-text">${escapeHtml(state.error)}</div>`; return; }
+  if(!state.participants.length){ el.innerHTML = `<div class="pulse-item">還沒有人打卡，快來當第一個！</div>`; return; }
+  const totalCheckins = state.entries.length;
+  const totalLost = state.participants.reduce((s,p)=>{
+    const sw = startWeight(state.entries, p.name), cw = currentWeight(state.entries, p.name);
+    return s + Math.max(0, (sw||0) - (cw||0));
+  }, 0);
+  el.innerHTML = `
+    <div class="pulse-item"><b>${state.participants.length}</b> 位選手</div>
+    <div class="pulse-dot">·</div>
+    <div class="pulse-item"><b>${totalCheckins}</b> 次打卡</div>
+    <div class="pulse-dot">·</div>
+    <div class="pulse-item">團隊共減 <b>${totalLost.toFixed(1)}</b> kg</div>
+  `;
+}
+
+function rankedNames(){
+  return [...state.participants]
+    .sort((a,b)=> percentLost(state.entries,b.name) - percentLost(state.entries,a.name))
+    .map(p=>p.name);
+}
+
+function renderPodium(){
+  const el = document.getElementById('podium');
+  if(!state.participants.length){ el.innerHTML = ''; return; }
+  const names = rankedNames().slice(0,3);
+  const ranked = names.map(n=> state.participants.find(p=>p.name===n));
+  const order = ranked.length===3 ? [ranked[1],ranked[0],ranked[2]] : ranked.length===2 ? [ranked[1],ranked[0]] : [ranked[0]];
+  el.innerHTML = order.map(p=>{
+    const rank = ranked.indexOf(p)+1;
+    const medal = rank===1?'🥇':rank===2?'🥈':'🥉';
+    const hClass = rank===1?'h1':rank===2?'h2':'h3';
+    const pl = percentLabel(percentLost(state.entries, p.name));
+    return `<div class="podium-block ${hClass}" style="--pc:${p.color}">
+      <div class="pb-medal">${medal}</div>
+      <div class="pb-name">${escapeHtml(p.name)}</div>
+      <div class="pb-percent">${pl.text}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderNameList(){
+  const el = document.getElementById('nameList');
+  el.innerHTML = state.participants.map(p=> `<option value="${escapeHtml(p.name)}">`).join('');
+}
+
+function renderLeaderboard(){
+  const el = document.getElementById('leaderboardList');
+  if(!state.participants.length){ el.innerHTML = `<p class="empty">還沒有選手加入擂台。</p>`; return; }
+  const rn = rankedNames();
+  el.innerHTML = rn.map((name,i)=>{
+    const p = state.participants.find(x=>x.name===name);
+    const es = entriesFor(state.entries, name);
+    const pl = percentLabel(percentLost(state.entries, name));
+    const bd = badgesFor(state.entries, name, rn).map(b=>`<span class="badge-chip" title="${escapeHtml(b.label)}">${b.icon}</span>`).join('');
+    return `
+    <div class="lb-row">
+      <div class="lb-rank">${i+1}</div>
+      <div class="lb-name">
+        <span class="dot" style="background:${p.color}"></span>
+        <div>
+          <div class="lb-name-text">${escapeHtml(name)}</div>
+          <div class="badges">${bd}</div>
+          ${goalLineFor(state.entries, name)}
+        </div>
+      </div>
+      <div class="lb-weight">${fmtW(currentWeight(state.entries,name))}<span class="unit">kg</span></div>
+      <div class="lb-percent ${pl.cls}">${pl.text}</div>
+      <div class="lb-spark">${sparkline(es, p.color)}</div>
+      <div class="lb-status"><span class="status-tag tag-good">${es.length} 次打卡</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderChart(){
+  const box = document.getElementById('chartBox');
+  if(!state.participants.length || !state.entries.length){
+    box.innerHTML = `<p class="empty">尚無資料，打卡後這裡會畫出戰況曲線。</p>`;
+    return;
+  }
+  const W=760, H=260, padL=38, padR=16, padT=16, padB=28;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const maxCheckins = Math.max(...state.participants.map(p=> entriesFor(state.entries,p.name).length), 2);
+
+  let minP=0, maxP=0;
+  const series = state.participants.map(p=>{
+    const es = entriesFor(state.entries, p.name);
+    const s = es.length ? es[0].weight : null;
+    const pts = es.map((e,i)=>{
+      const val = s ? ((s - e.weight)/s)*100 : 0;
+      minP = Math.min(minP,val); maxP = Math.max(maxP,val);
+      return { i, val };
+    });
+    return { p, pts };
+  });
+  maxP = Math.max(maxP, 2); minP = Math.min(minP, -2);
+  const yRange = maxP - minP;
+  function xFor(i){ return padL + (maxCheckins<=1 ? 0 : (i/(maxCheckins-1)) * plotW); }
+  function yFor(v){ return padT + (1-((v-minP)/yRange)) * plotH; }
+  const zeroY = yFor(0);
+
+  const lines = series.filter(s=>s.pts.length).map(s=>{
+    const d = s.pts.map((pt,idx)=> `${idx===0?'M':'L'} ${xFor(pt.i).toFixed(1)} ${yFor(pt.val).toFixed(1)}`).join(' ');
+    const last = s.pts[s.pts.length-1];
+    return `<path d="${d}" fill="none" stroke="${s.p.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${xFor(last.i).toFixed(1)}" cy="${yFor(last.val).toFixed(1)}" r="4" fill="${s.p.color}"/>`;
+  }).join('');
+  const legend = series.map(s=> `<span class="legend-item"><i style="background:${s.p.color}"></i>${escapeHtml(s.p.name)}</span>`).join('');
+
+  box.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+      <line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W-padR}" y2="${zeroY.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${padL-6}" y="${(zeroY+4).toFixed(1)}" text-anchor="end" class="axis-label">0%</text>
+      <text x="${padL-6}" y="${padT+8}" text-anchor="end" class="axis-label">${maxP.toFixed(0)}%</text>
+      <text x="${padL}" y="${H-8}" text-anchor="start" class="axis-label">第 1 次打卡</text>
+      <text x="${W-padR}" y="${H-8}" text-anchor="end" class="axis-label">第 ${maxCheckins} 次打卡</text>
+      ${lines}
+    </svg>
+    <div class="legend">${legend}</div>
+  `;
+}
+
+function renderDailyTable(){
+  const el = document.getElementById('dailyTable');
+  if(!state.participants.length || !state.entries.length){
+    el.innerHTML = `<p class="empty">尚無資料，打卡後這裡會出現每天的體重紀錄表。</p>`;
+    return;
+  }
+  const { keys, map } = buildDailyRecords(state.entries);
+  const head = `<tr><th class="dt-date">日期</th>${state.participants.map(p=>
+    `<th style="color:${p.color}">${escapeHtml(p.name)}</th>`).join('')}</tr>`;
+  const body = keys.map(key=>{
+    const cells = state.participants.map(p=>{
+      const w = map[key][p.name];
+      return `<td>${w!=null ? fmtW(w)+' kg' : '<span class="cell-empty">–</span>'}</td>`;
+    }).join('');
+    return `<tr><td class="dt-date">${dateLabelOf(key)}</td>${cells}</tr>`;
+  }).join('');
+  el.innerHTML = `<table class="daily-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+function renderFeed(){
+  const el = document.getElementById('feedList');
+  if(!state.entries.length){ el.innerHTML = `<p class="empty">還沒有動態，打第一卡搶頭香！</p>`; return; }
+  const perName = {};
+  const items = state.entries.map(e=>{
+    const prevList = perName[e.name] || [];
+    const prevWeight = prevList.length ? prevList[prevList.length-1] : null;
+    const diff = prevWeight != null ? +(prevWeight - e.weight).toFixed(1) : null;
+    prevList.push(e.weight);
+    perName[e.name] = prevList;
+    const newLow = prevList.length > 1 && e.weight < Math.min(...prevList.slice(0,-1));
+    return { ...e, diff, newLow };
+  }).reverse();
+  const colorOf = (name)=> (state.participants.find(p=>p.name===name)||{}).color || '#999';
+  el.innerHTML = items.slice(0,60).map(item=>{
+    const diffText = item.diff==null ? '首次紀錄' : (item.diff>0 ? `↓ ${item.diff.toFixed(1)} kg` : item.diff<0 ? `↑ ${Math.abs(item.diff).toFixed(1)} kg` : '持平');
+    const tag = item.newLow ? `<span class="feed-tag good">🏆 創新低</span>` : '';
+    return `<div class="feed-item">
+      <span class="dot" style="background:${colorOf(item.name)}"></span>
+      <div class="feed-body">
+        <div class="feed-line"><b>${escapeHtml(item.name)}</b> 打卡：${fmtW(item.weight)} kg <span class="feed-diff">${diffText}</span> ${tag}</div>
+        ${item.note ? `<div class="feed-note">「${escapeHtml(item.note)}」</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> t.classList.remove('show'), 2600);
+}
+
+function triggerConfetti(){
+  const layer = document.getElementById('confetti');
+  if(!layer) return;
+  for(let i=0;i<40;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = (Math.random()*100)+'%';
+    el.style.background = COLORS[Math.floor(Math.random()*COLORS.length)];
+    el.style.animationDelay = (Math.random()*0.4)+'s';
+    el.style.animationDuration = (1.6+Math.random()*1.2)+'s';
+    el.style.setProperty('--r', (Math.random()*360)+'deg');
+    layer.appendChild(el);
+    setTimeout(()=> el.remove(), 3200);
+  }
+}
+
+function updateCountdown(){
+  const el = document.getElementById('cdDays');
+  if(!el) return;
+  const end = new Date(COMP_END+'T23:59:59').getTime();
+  const diff = end - Date.now();
+  if(diff<=0){ el.textContent='0'; return; }
+  el.textContent = String(Math.floor(diff/86400000));
+}
+
+async function init(){
+  buildShell();
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+  await loadData(false);
+  setInterval(()=> loadData(false), 30000);
+}
+
+init();
+</script>
+</body>
+</html>
