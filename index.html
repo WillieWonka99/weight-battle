@@ -93,6 +93,7 @@
   .roast-card h2{ color:var(--warn); }
   .roast-item{ padding:9px 2px; border-bottom:1px dashed var(--line); font-size:14px; line-height:1.6; }
   .roast-item:last-child{ border-bottom:none; }
+  .roast-item.overtake-roast{ font-weight:600; background:#FCF6EA; border-radius:8px; padding-left:10px; padding-right:10px; border-bottom:none; margin-bottom:4px; }
   .overtake-item{ background:#FCF6EA; border-radius:8px; padding-left:10px; padding-right:10px; }
   .ot-icon{ font-size:15px; margin-top:2px; }
   .feed-line.overtake{ font-weight:600; }
@@ -777,21 +778,11 @@ function buildShell(){
     </section>
 
     <section class="card">
-      <h2>擂台動態</h2>
-      <form data-action="submit-comment" class="comment-form">
-        <input name="name" type="text" list="nameList" maxlength="20" required placeholder="參賽者名字">
-        <input name="msg" type="text" maxlength="200" required placeholder="嗆一下隊友、放個話...">
-        <button type="submit" class="btn">發送</button>
-      </form>
-      <div id="feedList"></div>
-    </section>
-
-    <section class="card">
-      <h2>📣 觀眾應援區</h2>
-      <p class="hint" style="margin:-4px 0 12px">沒參賽也能留言！加油、看熱鬧、預測誰會奪冠都歡迎。</p>
+      <h2>📣 應援留言板</h2>
+      <p class="hint" style="margin:-4px 0 12px">參賽者、觀眾都歡迎留言！加油、嗆聲、預測誰會奪冠都可以。</p>
       <form data-action="submit-cheer" class="comment-form">
         <input name="name" type="text" maxlength="20" required placeholder="你的名字">
-        <input name="msg" type="text" maxlength="200" required placeholder="幫選手加油打氣...">
+        <input name="msg" type="text" maxlength="200" required placeholder="留下你的一句話...">
         <button type="submit" class="btn">發送</button>
       </form>
       <div id="cheerList"></div>
@@ -818,7 +809,7 @@ function handleSubmit(e){
   const fd = new FormData(form);
   if(form.dataset.action === 'submit-checkin'){
     submitCheckin(fd.get('name'), fd.get('weight'), fd.get('goal'), fd.get('note'));
-  } else if(form.dataset.action === 'submit-comment' || form.dataset.action === 'submit-cheer'){
+  } else if(form.dataset.action === 'submit-cheer'){
     submitComment(fd.get('name'), fd.get('msg'));
   }
   form.reset();
@@ -833,27 +824,30 @@ function renderAll(){
   renderLeaderboard();
   renderChart();
   renderDailyTable();
-  renderFeed();
   renderCheers();
 }
 
 function renderCheers(){
   const el = document.getElementById('cheerList');
   if(!el) return;
-  const isParticipant = (name)=> state.participants.some(p=>p.name===name);
-  const cheers = state.entries.filter(e=> e.type==='comment' && !isParticipant(e.name)).slice().reverse();
+  const cheers = state.entries.filter(e=> e.type==='comment').slice().reverse();
   if(!cheers.length){
-    el.innerHTML = `<p class="empty">還沒有觀眾留言，把網址分享給親友團吧！</p>`;
+    el.innerHTML = `<p class="empty">還沒有留言，搶頭香喊個話吧！</p>`;
     return;
   }
-  el.innerHTML = cheers.slice(0,40).map(c=>`
+  el.innerHTML = cheers.slice(0,40).map(c=>{
+    const p = state.participants.find(x=>x.name===c.name);
+    const dotColor = p ? p.color : 'var(--ink-faint)';
+    const icon = p ? '💬' : '📣';
+    return `
     <div class="feed-item">
-      <span class="dot" style="background:var(--ink-faint)"></span>
+      <span class="dot" style="background:${dotColor}"></span>
       <div class="feed-body">
-        <div class="feed-line comment">📣 <b>${escapeHtml(c.name)}</b>： ${escapeHtml(c.note)}</div>
+        <div class="feed-line comment">${icon} <b>${escapeHtml(c.name)}</b>： ${escapeHtml(c.note)}</div>
         ${c.dateKey && c.dateKey!=='unknown' ? `<div class="feed-meta-sm">${dateLabelOf(c.dateKey)}</div>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderQuote(){
@@ -909,11 +903,21 @@ function renderRoast(){
   if(totalLost > 0) cands.push({ pri:6, cat:'team', vars:{ total: totalLost.toFixed(1), n: state.participants.length }, salt:'team' });
 
   cands.sort((a,b)=>a.pri-b.pri);
-  const picks = cands.slice(0,4).map(c=>{
+
+  // 最近的超車事件（最多 2 則）優先置頂，講評總數固定 3 則
+  const overtakes = computeOvertakes(state.entries).slice(-2).reverse();
+  const otLines = overtakes.map(o=>{
+    const tpl = seededPick(ROASTS.overtake, seed, o.a+'>'+o.b+'#'+o.srcIdx);
+    return `<div class="roast-item overtake-roast">⚡ ${escapeHtml(fillTpl(tpl, { a:o.a, b:o.b }))}</div>`;
+  });
+
+  const picks = cands.slice(0, Math.max(0, 3 - otLines.length)).map(c=>{
     const tpl = seededPick(ROASTS[c.cat], seed, c.salt);
     return `<div class="roast-item">${escapeHtml(fillTpl(tpl, c.vars))}</div>`;
   });
-  el.innerHTML = picks.length ? picks.join('') : `<p class="empty">今天大家表現良好，評論員無話可說（明天再來）。</p>`;
+
+  const all = [...otLines, ...picks].slice(0, 3);
+  el.innerHTML = all.length ? all.join('') : `<p class="empty">今天大家表現良好，評論員無話可說（明天再來）。</p>`;
 }
 
 function renderPulse(){
@@ -1056,64 +1060,6 @@ function renderDailyTable(){
     return `<tr><td class="dt-date">${dateLabelOf(key)}</td>${cells}</tr>`;
   }).join('');
   el.innerHTML = `<table class="daily-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-}
-
-function renderFeed(){
-  const el = document.getElementById('feedList');
-  if(!state.entries.length){ el.innerHTML = `<p class="empty">還沒有動態，打第一卡搶頭香！</p>`; return; }
-  const overtakes = computeOvertakes(state.entries);
-  const otByIdx = {};
-  overtakes.forEach(o=>{ (otByIdx[o.srcIdx] = otByIdx[o.srcIdx] || []).push(o); });
-
-  const perName = {};
-  const items = [];
-  const isParticipant = (name)=> state.participants.some(p=>p.name===name);
-  state.entries.forEach((e, idx)=>{
-    if(e.type !== 'checkin'){
-      if(isParticipant(e.name)) items.push({ ...e, diff: null, newLow: false });
-      // spectator comments are rendered in the cheer section instead
-    } else {
-      const prevList = perName[e.name] || [];
-      const prevWeight = prevList.length ? prevList[prevList.length-1] : null;
-      const diff = prevWeight != null ? +(prevWeight - e.weight).toFixed(1) : null;
-      prevList.push(e.weight);
-      perName[e.name] = prevList;
-      const newLow = prevList.length > 1 && e.weight < Math.min(...prevList.slice(0,-1));
-      items.push({ ...e, diff, newLow });
-    }
-    (otByIdx[idx] || []).forEach(o=>{
-      items.push({ type:'overtake', a:o.a, b:o.b, salt:o.a+'>'+o.b+'#'+idx });
-    });
-  });
-  items.reverse();
-
-  const colorOf = (name)=> (state.participants.find(p=>p.name===name)||{}).color || '#9AA3B2';
-  el.innerHTML = items.slice(0,60).map(item=>{
-    if(item.type === 'overtake'){
-      const tpl = seededPick(ROASTS.overtake, todaySeed(), item.salt);
-      return `<div class="feed-item overtake-item">
-        <span class="ot-icon">⚡</span>
-        <div class="feed-body"><div class="feed-line overtake">${escapeHtml(fillTpl(tpl, { a:item.a, b:item.b }))}</div></div>
-      </div>`;
-    }
-    if(item.type !== 'checkin'){
-      return `<div class="feed-item">
-        <span class="dot" style="background:${colorOf(item.name)}"></span>
-        <div class="feed-body">
-          <div class="feed-line comment">💬 <b>${escapeHtml(item.name)}</b>： ${escapeHtml(item.note)}</div>
-        </div>
-      </div>`;
-    }
-    const diffText = item.diff==null ? '首次紀錄' : (item.diff>0 ? `↓ ${item.diff.toFixed(1)} kg` : item.diff<0 ? `↑ ${Math.abs(item.diff).toFixed(1)} kg` : '持平');
-    const tag = item.newLow ? `<span class="feed-tag good">🏆 創新低</span>` : '';
-    return `<div class="feed-item">
-      <span class="dot" style="background:${colorOf(item.name)}"></span>
-      <div class="feed-body">
-        <div class="feed-line"><b>${escapeHtml(item.name)}</b> 打卡：${fmtW(item.weight)} kg <span class="feed-diff">${diffText}</span> ${tag}</div>
-        ${item.note ? `<div class="feed-note">「${escapeHtml(item.note)}」</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
 }
 
 function showToast(msg){
