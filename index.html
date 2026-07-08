@@ -93,11 +93,8 @@
   .roast-card h2{ color:var(--warn); }
   .roast-item{ padding:9px 2px; border-bottom:1px dashed var(--line); font-size:14px; line-height:1.6; }
   .roast-item:last-child{ border-bottom:none; }
-  .roast-item.overtake-roast{ font-weight:600; background:#FCF6EA; border-radius:8px; padding-left:10px; padding-right:10px; border-bottom:none; margin-bottom:4px; }
-  .overtake-item{ background:#FCF6EA; border-radius:8px; padding-left:10px; padding-right:10px; }
-  .ot-icon{ font-size:15px; margin-top:2px; }
-  .feed-line.overtake{ font-weight:600; }
   .feed-meta-sm{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  .feed-date{ font-size:11.5px; color:var(--ink-faint); margin-left:4px; }
   .form-row label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
   input[type=text], input[type=number]{
     width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px;
@@ -535,38 +532,6 @@ function entriesFor(entries, name){
   return entries.filter(e=>e.name===name && e.type==='checkin');
 }
 
-// Replays check-ins in order and detects when someone's ranking (by % lost)
-// jumps above a person they were previously behind — an "overtake" event.
-function computeOvertakes(entries){
-  const events = [];
-  const soFar = [];
-  const rankOf = (list)=>{
-    const names = [];
-    const seen = {};
-    list.forEach(e=>{ if(!seen[e.name]){ seen[e.name]=true; names.push(e.name); } });
-    return names.map(name=>{
-      const es = list.filter(e=>e.name===name);
-      const s = es[0].weight, c = es[es.length-1].weight;
-      return { name, val: s ? ((s-c)/s)*100 : 0 };
-    }).sort((a,b)=>b.val-a.val).map(x=>x.name);
-  };
-  entries.forEach((e, idx)=>{
-    if(e.type!=='checkin') return;
-    const before = rankOf(soFar);
-    soFar.push(e);
-    const after = rankOf(soFar);
-    const iB = before.indexOf(e.name);
-    const iA = after.indexOf(e.name);
-    if(iB > -1 && iA > -1 && iA < iB){
-      before.forEach(n=>{
-        if(n !== e.name && before.indexOf(n) < iB && after.indexOf(n) > iA){
-          events.push({ srcIdx: idx, a: e.name, b: n });
-        }
-      });
-    }
-  });
-  return events;
-}
 function currentWeight(entries, name){
   const es = entriesFor(entries, name);
   return es.length ? es[es.length-1].weight : null;
@@ -778,6 +743,11 @@ function buildShell(){
     </section>
 
     <section class="card">
+      <h2>擂台動態</h2>
+      <div id="feedList"></div>
+    </section>
+
+    <section class="card">
       <h2>📣 應援留言板</h2>
       <p class="hint" style="margin:-4px 0 12px">參賽者、觀眾都歡迎留言！加油、嗆聲、預測誰會奪冠都可以。</p>
       <form data-action="submit-cheer" class="comment-form">
@@ -824,7 +794,38 @@ function renderAll(){
   renderLeaderboard();
   renderChart();
   renderDailyTable();
+  renderFeed();
   renderCheers();
+}
+
+function renderFeed(){
+  const el = document.getElementById('feedList');
+  if(!el) return;
+  const checkins = state.entries.filter(e=>e.type==='checkin');
+  if(!checkins.length){ el.innerHTML = `<p class="empty">還沒有打卡紀錄，搶頭香！</p>`; return; }
+  const perName = {};
+  const items = checkins.map(e=>{
+    const prevList = perName[e.name] || [];
+    const prevWeight = prevList.length ? prevList[prevList.length-1] : null;
+    const diff = prevWeight != null ? +(prevWeight - e.weight).toFixed(1) : null;
+    prevList.push(e.weight);
+    perName[e.name] = prevList;
+    const newLow = prevList.length > 1 && e.weight < Math.min(...prevList.slice(0,-1));
+    return { ...e, diff, newLow };
+  }).reverse();
+  const colorOf = (name)=> (state.participants.find(p=>p.name===name)||{}).color || '#9AA3B2';
+  el.innerHTML = items.slice(0,50).map(item=>{
+    const diffText = item.diff==null ? '首次紀錄' : (item.diff>0 ? `↓ ${item.diff.toFixed(1)} kg` : item.diff<0 ? `↑ ${Math.abs(item.diff).toFixed(1)} kg` : '持平');
+    const tag = item.newLow ? `<span class="feed-tag good">🏆 創新低</span>` : '';
+    const dateLbl = item.dateKey && item.dateKey!=='unknown' ? `<span class="feed-date">${dateLabelOf(item.dateKey)}</span>` : '';
+    return `<div class="feed-item">
+      <span class="dot" style="background:${colorOf(item.name)}"></span>
+      <div class="feed-body">
+        <div class="feed-line"><b>${escapeHtml(item.name)}</b> 打卡：${fmtW(item.weight)} kg <span class="feed-diff">${diffText}</span> ${tag} ${dateLbl}</div>
+        ${item.note ? `<div class="feed-note">「${escapeHtml(item.note)}」</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderCheers(){
@@ -869,6 +870,15 @@ function renderRoast(){
   const rn = rankedNames();
   const cands = [];
 
+  // 頭號目標：整場比賽下來反而變胖的最後一名，每天必鞭
+  if(rn.length){
+    const worst = rn[rn.length-1];
+    const sw = startWeight(state.entries, worst), cw = currentWeight(state.entries, worst);
+    if(sw != null && cw != null && cw > sw + 0.05){
+      cands.push({ pri:0, cat:'gained', vars:{ name:worst, kg:(cw-sw).toFixed(1) }, salt:worst+'-worst' });
+    }
+  }
+
   state.participants.forEach(p=>{
     const es = entriesFor(state.entries, p.name);
     if(!es.length) return;
@@ -903,21 +913,20 @@ function renderRoast(){
   if(totalLost > 0) cands.push({ pri:6, cat:'team', vars:{ total: totalLost.toFixed(1), n: state.participants.length }, salt:'team' });
 
   cands.sort((a,b)=>a.pri-b.pri);
-
-  // 最近的超車事件（最多 2 則）優先置頂，講評總數固定 3 則
-  const overtakes = computeOvertakes(state.entries).slice(-2).reverse();
-  const otLines = overtakes.map(o=>{
-    const tpl = seededPick(ROASTS.overtake, seed, o.a+'>'+o.b+'#'+o.srcIdx);
-    return `<div class="roast-item overtake-roast">⚡ ${escapeHtml(fillTpl(tpl, { a:o.a, b:o.b }))}</div>`;
+  // 同一個人一天最多被鞭一次
+  const seenName = {};
+  const unique = cands.filter(c=>{
+    const key = c.vars.name || c.cat;
+    if(seenName[key]) return false;
+    seenName[key] = true;
+    return true;
   });
 
-  const picks = cands.slice(0, Math.max(0, 3 - otLines.length)).map(c=>{
+  const picks = unique.slice(0, 3).map(c=>{
     const tpl = seededPick(ROASTS[c.cat], seed, c.salt);
     return `<div class="roast-item">${escapeHtml(fillTpl(tpl, c.vars))}</div>`;
   });
-
-  const all = [...otLines, ...picks].slice(0, 3);
-  el.innerHTML = all.length ? all.join('') : `<p class="empty">今天大家表現良好，評論員無話可說（明天再來）。</p>`;
+  el.innerHTML = picks.length ? picks.join('') : `<p class="empty">今天大家表現良好，評論員無話可說（明天再來）。</p>`;
 }
 
 function renderPulse(){
