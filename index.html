@@ -82,6 +82,21 @@
   .card h2{ font-family:var(--font-display); font-size:22px; letter-spacing:.02em; margin:0 0 14px; font-weight:normal; }
 
   .form-row{ margin-bottom:12px; }
+  .comment-form{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .comment-form input[name="name"]{ flex:0 0 140px; }
+  .comment-form input[name="msg"]{ flex:1 1 200px; }
+  .feed-line.comment{ color:var(--ink); }
+  .quote-banner{
+    text-align:center; font-size:14px; color:var(--ink-soft); font-style:italic;
+    margin:-6px 0 18px; padding:0 12px; line-height:1.6;
+  }
+  .roast-card h2{ color:var(--warn); }
+  .roast-item{ padding:9px 2px; border-bottom:1px dashed var(--line); font-size:14px; line-height:1.6; }
+  .roast-item:last-child{ border-bottom:none; }
+  .overtake-item{ background:#FCF6EA; border-radius:8px; padding-left:10px; padding-right:10px; }
+  .ot-icon{ font-size:15px; margin-top:2px; }
+  .feed-line.overtake{ font-weight:600; }
+  .feed-meta-sm{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
   .form-row label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
   input[type=text], input[type=number]{
     width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px;
@@ -198,6 +213,239 @@ const state = {
 
 const root = document.getElementById('root');
 
+// ---------- 毒舌語錄庫（200 句，依情境分類） ----------
+const ROASTS = {
+  generic: [
+    "離封榜剩 {days} 天，你的對手正在流汗，你在流口水",
+    "體重計不會說謊，但「我明天開始」會",
+    "今天偷懶一時爽，封榜日火葬場",
+    "鹽酥雞不會背叛你，它只會永遠留在你身上",
+    "珍珠奶茶裡的珍珠，最後都會住進你的肚子",
+    "你在滑手機的時候，排行榜也在滑——往下滑",
+    "宵夜是魔鬼的擁抱，溫暖但要付利息",
+    "每一杯全糖手搖，都是寫給排行榜的分手信",
+    "別人在深蹲，你在深夜排隊買雞排",
+    "不是喝水都會胖，是你配水吃的東西會",
+    "汗水是脂肪的眼淚，今天讓它哭了嗎",
+    "你的運動鞋已經開始懷疑自己被買來當裝飾品",
+    "冰箱半夜發出的光，是通往排行榜谷底的入口",
+    "體重計上的數字不可怕，可怕的是你不敢站上去",
+    "今天的藉口很好聽，可惜排行榜聽不懂",
+    "電梯很方便，但樓梯才是你的貴人",
+    "打卡的路上沒有塞車，只有懶惰",
+    "你跟第一名的距離，大概是三杯珍奶",
+    "減重最大的敵人不是食物，是「反正今天已經破功了」",
+    "明天的你會感謝今天流汗的你，或唾棄今天躺平的你",
+    "排行榜每天都在更新，你的決心呢",
+    "想像封榜那天的自己，再決定今晚要不要躺平",
+    "宵夜攤老闆都認得你了，操場還不知道你長怎樣",
+    "你收藏的健身影片，看完有跟著動的有幾部",
+    "熱量不會憑空消失，它只會轉移到你的排名",
+    "對手最喜歡看到的畫面，就是你說「今天休息一天」",
+    "封榜日不會延期，你的開始日卻一直延期",
+    "全世界都在等你打卡，包括你的體重計",
+    "「吃這麼少不會瘦啦」——說這句話的人正在超越你",
+    "你的意志力跟手搖飲的冰塊一樣，天氣一熱就融化",
+    "躺著也會瘦是真的，前提是你動完了再躺",
+    "減重沒有捷徑，但擺爛有直達車",
+    "今天走的每一步路，都是踩在對手的心上",
+    "體脂肪很忠心，你不趕它，它永遠不走",
+    "你的胃是無底洞，排行榜可是有底的",
+    "今天不想動的話，明天要用兩倍償還，含利息",
+    "成功的人找方法，失敗的人找鹽酥雞",
+    "排行榜第一名昨天也不想動，但他動了",
+    "一天偷吃一點點，封榜日嚇一大跳",
+    "你離目標體重的距離，用嘴巴是走不到的",
+    "打卡只要 30 秒，找藉口要想 30 分鐘",
+    "對自己狠一點，不然封榜日別人對你狠",
+    "現在流的每一滴汗，都是幫封榜日的自己買保險",
+    "半夜的滷味攤，是排行榜殺手的聚集地",
+    "剩 {days} 天，奇蹟不會發生，但複利會"
+  ],
+  missing: [
+    "{name} 已失聯 {days} 天，親友可準備登報協尋",
+    "{name} 的體重計已經 {days} 天沒開機，疑似進入冬眠",
+    "尋人啟事：{name}，最後身影出現在 {days} 天前的排行榜",
+    "{name} 消失 {days} 天，我們合理懷疑他在閉關偷練，或偷吃",
+    "{name} 已 {days} 天未打卡，排行榜幫他點了一首《朋友別哭》",
+    "有人看過 {name} 嗎？懸賞一杯無糖綠",
+    "{name} 神隱 {days} 天，體重計表示：我也想他",
+    "{name} 的打卡紀錄跟他的減重決心一起放假了，第 {days} 天",
+    "警方目前掌握的線索：{name} 最後一次打卡是 {days} 天前",
+    "{name} 失蹤 {days} 天，冰箱表示他其實每天都有來",
+    "{name} 是不是把打卡這件事跟體重一起忘了，已經 {days} 天",
+    "{days} 天了，隊友都快忘記 {name} 長什麼樣子",
+    "{name} 已 {days} 天未回報，據傳被雞排攤挾持",
+    "{name} 人間蒸發 {days} 天，蒸發的可惜不是體重",
+    "敬告 {name}：排行榜不是防空洞，躲 {days} 天了該出來了",
+    "{name} 已讀不回排行榜 {days} 天，這種人最可怕",
+    "{name} 的體重成謎已 {days} 天，比懸疑劇還吊人胃口",
+    "第 {days} 天，{name} 依然堅持神秘路線，我們敬佩但不鼓勵",
+    "{name} 消失的這 {days} 天，對手已經超前部署",
+    "{name}，你的體重計每天晚上都在等你，第 {days} 天了",
+    "據可靠消息，{name} 這 {days} 天過得很滋潤，就是不敢量",
+    "{name} 打卡欄位已長草 {days} 天，建議除草順便量個體重",
+    "{name} 已 {days} 天未現身，排行榜決定保留他的位置，暫時",
+    "全體注意：{name} 潛水 {days} 天，憋氣時間逼近金氏紀錄",
+    "{name} 缺席 {days} 天，本擂台宣布他暫時改名「路人甲」"
+  ],
+  gained: [
+    "{name} 本次進帳 {kg} kg，投資有賺有賠，進食前請詳閱說明書",
+    "{name} 逆勢上漲 {kg} kg，法人看好續強，散戶快逃",
+    "{name} +{kg} kg，這不是減重比賽嗎，你是不是走錯棚",
+    "恭喜 {name} 榮獲本日成長股，漲幅 {kg} kg",
+    "{name} 增加 {kg} kg，體重計已申請測謊複驗",
+    "{name} 的體重多了 {kg} kg，快樂的代價總是很具體",
+    "{name} +{kg} kg，週末的美食記憶都寫在數字裡了",
+    "{name} 上漲 {kg} kg，這波行情叫做「宵夜多頭」",
+    "{name} 進貨 {kg} kg，庫存壓力測試中",
+    "{name} 本日 +{kg}，這是自由落體，方向相反的那種",
+    "{name} 喜提 {kg} kg，喜從何來我們也不知道",
+    "{name} 的 {kg} kg 漲幅，證明了美食的力量大於意志力",
+    "{name} +{kg} kg，昨晚的聚餐名單請交出來",
+    "{name} 揹了 {kg} kg 上山，可惜這座山叫排行榜",
+    "{name} 增重 {kg} kg，教練表示：這不在課表裡",
+    "{name} 的體重像台股一樣震盪，今天 +{kg}",
+    "{name} +{kg} kg，體脂肪開派對還沒收拾",
+    "{name} 多了 {kg} kg，這是身體對美食的五星好評",
+    "{name} 上修 {kg} kg，分析師建議減少雞排部位持股",
+    "{name} 本日 +{kg} kg，反向操作玩得很大膽",
+    "{name} 進帳 {kg} kg，排行榜已通知海關查驗",
+    "{name} +{kg}，沒關係，明天的你會處理的，對吧",
+    "{name} 增加 {kg} kg，這叫戰略性儲備，我們姑且相信",
+    "{name} 漲了 {kg} kg，跌的是隊友對你的信心",
+    "{name} +{kg} kg，美食圈痛失一位減重選手"
+  ],
+  newlow: [
+    "{name} 創下新低，體重計嚇到當機重開",
+    "{name} 又破紀錄，這種人就是別人家的隊友",
+    "{name} 再創新低，請問你是把體重放在哪裡了",
+    "{name} 新低達成，對手已連夜開會研擬對策",
+    "{name} 破底成功，這是排行榜最想看到的跌停",
+    "{name} 又瘦了，建議大家把他的菜單偷來研究",
+    "{name} 創新低，體脂肪含淚辦理離職手續",
+    "{name} 續創新低，這走勢畫成線圖可以裱框了",
+    "{name} 破了自己的紀錄，也破了隊友的心理防線",
+    "{name} 新低！其他人可以開始緊張了",
+    "{name} 又下一城，體重計看到他都肅然起敬",
+    "{name} 再破底，脂肪界宣布他為頭號通緝犯",
+    "{name} 創新低，隊友紛紛表示壓力山大",
+    "{name} 的體重跌跌不休，這支我們可以追",
+    "{name} 新低紀錄達成，慶祝方式建議不要是吃到飽",
+    "{name} 又瘦了，這已經不是打卡，是示威",
+    "{name} 破紀錄的頻率，比對手打卡的頻率還高",
+    "{name} 續探新低，脂肪已發表不自殺聲明",
+    "{name} 再創低點，排行榜請他喝一杯，無糖的",
+    "{name} 新低！請全體起立鼓掌，然後去運動"
+  ],
+  plateau: [
+    "{name} 的體重已持平多日，穩定得像定存利率",
+    "{name} 連日持平，體重計懷疑自己壞了",
+    "{name} 的數字文風不動，比公務員還穩",
+    "{name} 持平中，這是暴風雨前的寧靜還是就只是寧靜",
+    "{name} 的體重進入橫盤整理，成交量低迷",
+    "{name} 卡關了，脂肪正在做最後的頑強抵抗",
+    "{name} 持平多日，數字穩到可以當提款密碼",
+    "{name} 的體重像被凍結，建議檢查是不是按到暫停鍵",
+    "{name} 平盤震盪中，多空雙方在你肚子上僵持",
+    "{name} 的曲線平到可以拿去當水平儀",
+    "{name} 持平多日，突破在即，或是放棄在即",
+    "{name} 的體重叫做以不變應萬變，可惜比賽會變",
+    "{name} 卡在同個數字，像電梯卡在樓層之間",
+    "{name} 持平中，脂肪組織召開緊急防守會議",
+    "{name} 的數字穩如泰山，可是我們要的是移山",
+    "{name} 停滯期到了，這時候放棄的話前面都白費囉",
+    "{name} 的體重計連續出同一個數字，樂透都沒這麼準",
+    "{name} 橫盤已久，主力（你自己）該進場了",
+    "{name} 持平不是罪，但對手可沒在等你",
+    "{name} 的體重靜止不動，牛頓第一定律的完美示範"
+  ],
+  champion: [
+    "目前擂主 {name}，請各位加緊練功，別讓他太寂寞",
+    "{name} 穩坐王座，其他人在幫他暖場嗎",
+    "擂主 {name} 發來賀電：謝謝大家的不努力",
+    "{name} 高居榜首，聽說他看排行榜的角度是俯視",
+    "王者 {name} 表示：高處不勝寒，但風景真好",
+    "{name} 蟬聯第一，隊友們的自尊心正在排隊掛號",
+    "擂主 {name} 的位置很穩，穩到他開始無聊了",
+    "{name} 稱霸中，有人要出來挑戰嗎，還是繼續觀望",
+    "第一名 {name} 每天醒來的第一件事：看誰又被他甩開了",
+    "{name} 在山頂等各位，順便提醒山下訊號不好",
+    "擂主 {name} 已把王座坐出人體工學曲線",
+    "{name} 領先群雄，建議大家研究他冰箱裡有什麼",
+    "冠軍 {name} 的背影，是其他人最熟悉的風景",
+    "{name} 持續霸榜，工作人員考慮把他的名字直接印上去",
+    "擂主 {name} 溫馨提醒：王座只有一個，先搶先贏"
+  ],
+  lastplace: [
+    "{name} 目前殿後，但墊底的人反彈空間最大，利多",
+    "{name} 鎮守榜尾，沒有他就沒有排行榜的完整性",
+    "敬 {name}：壓力最小的位置，就是無路可退的位置",
+    "{name} 在隊伍最後面，替大家把風，辛苦了",
+    "{name} 墊底中，好消息是接下來怎麼走都是上坡",
+    "{name} 排名最末，觸底反彈的劇本已寫好，就等主角上場",
+    "{name} 敬陪末座，但黑馬都是從最後面衝出來的",
+    "{name} 目前墊底，這叫戰略性蹲低，準備跳更高",
+    "排行榜最下面很溫暖嗎 {name}，上面的人想知道",
+    "{name} 殿後中，記住：比賽結束前，一切都是劇情需要",
+    "{name} 在榜尾練功，出關那天大家等著看",
+    "最後一名 {name} 的好處：全隊都在幫你製造超車機會",
+    "{name} 墊底不可恥，可恥的是墊得心安理得",
+    "{name} 位居末位，體重計相信這只是你的煙霧彈",
+    "{name} 在谷底，接下來的每一步都叫做進步"
+  ],
+  overtake: [
+    "{a} 超越了 {b}！{b} 表示：我只是讓一下",
+    "{a} 完成超車，{b} 的後照鏡裡只剩灰塵",
+    "{a} 彎道超越 {b}，這個過彎又急又狠",
+    "{b} 被 {a} 超越，現場傳來心碎的聲音",
+    "{a} 一舉超過 {b}，{b} 的宵夜要負最大責任",
+    "超車警報：{a} 已閃燈超越 {b}，請 {b} 靠邊反省",
+    "{a} 超越 {b} 成功，{b} 正在申請調閱行車紀錄器",
+    "{a} 過了 {b} 這一關，{b} 表示不服，然後繼續吃",
+    "{b} 慘遭 {a} 超車，風水輪流轉，轉速有點快",
+    "{a} 超越 {b}！這一幕將收錄本擂台年度十大名場面",
+    "{b} 的位置被 {a} 拿走了，連再見都沒說",
+    "{a} 飛越 {b}，{b} 連車尾燈都沒看到",
+    "排位異動：{a} 上，{b} 下，理由是汗水分配不均",
+    "{a} 超車 {b} 成功，保險公司表示這起事故不理賠",
+    "{b} 被 {a} 過了，教練建議 {b} 先從打卡開始練",
+    "{a} 完成對 {b} 的超越，過程乾淨俐落，不留情面",
+    "{b} 讓出位置給 {a}，讓得心不甘情不願",
+    "{a} 超越 {b} 的瞬間，排行榜都亮了",
+    "{b} 失守，{a} 補位，江湖就是這麼現實",
+    "{a} 一腳油門超越 {b}，{b} 還在找鑰匙"
+  ],
+  team: [
+    "全隊 {n} 人已合力甩掉 {total} kg，約等於一台小型除濕機",
+    "團隊總減重 {total} kg，這些脂肪已妥善釋放至大氣層",
+    "{n} 位勇士合計丟掉 {total} kg，地球都變輕了",
+    "本擂台累積減重 {total} kg，脂肪表示遣散費都沒拿到",
+    "全體戰績：{total} kg 消失，警方目前不受理協尋",
+    "{n} 人團隊共減 {total} kg，這是集體智慧，或集體流汗",
+    "累計 {total} kg 已離開這個團隊，離職原因：待遇太差",
+    "全隊甩掉 {total} kg，相當於一顆保齡球乘以很多顆",
+    "團隊總計 -{total} kg，脂肪工會抗議裁員過快",
+    "{total} kg 已從 {n} 個人身上撤離，撤得漂亮",
+    "本隊累積減重 {total} kg，體重計聯合會頒發感謝狀",
+    "全體共減 {total} kg，這重量拿去寄超商要加錢",
+    "{n} 人合力達成 -{total} kg，團結力量大，脂肪最知道",
+    "團隊戰果 {total} kg，每一公斤都有汗水的簽名",
+    "累計 {total} kg 蒸發完成，本擂台環保又減碳"
+  ]
+};
+
+function seededPick(arr, seedStr, salt){
+  let h = 0;
+  const s = seedStr + '|' + salt;
+  for(let i=0;i<s.length;i++){ h = ((h<<5)-h+s.charCodeAt(i))|0; }
+  return arr[Math.abs(h) % arr.length];
+}
+function fillTpl(tpl, vars){
+  return tpl.replace(/\{(\w+)\}/g, (m,k)=> vars[k] != null ? vars[k] : m);
+}
+function todaySeed(){ return new Date().toLocaleDateString('en-CA'); }
+
 function escapeHtml(str){
   return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -232,16 +480,26 @@ function processGvizResponse(json){
     const cells = (r && r.c) || [];
     const get = (i)=> (i>=0 && cells[i]) ? cells[i].v : null;
     const name = (get(iName) == null ? '' : String(get(iName))).trim();
+    if(!name) return;
     const weightRaw = get(iWeight);
-    const weight = typeof weightRaw === 'number' ? weightRaw : parseFloat(weightRaw);
-    if(!name || isNaN(weight)) return;
+    const weightNum = typeof weightRaw === 'number' ? weightRaw : parseFloat(weightRaw);
+    // No valid weight = a cheer/comment-only post (e.g. from a non-participant),
+    // not an official weigh-in, so it never touches the leaderboard/chart.
+    const hasWeight = !isNaN(weightNum) && weightRaw !== null && weightRaw !== '';
     const goalRaw = iGoal >= 0 ? get(iGoal) : null;
     const goalNum = typeof goalRaw === 'number' ? goalRaw : parseFloat(goalRaw);
     const goal = (goalRaw == null || goalRaw === '' || isNaN(goalNum)) ? null : goalNum;
     const note = (get(iNote) == null ? '' : String(get(iNote))).trim();
     const d = parseGvizDate(get(iTs));
     const dateKey = d ? `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}` : 'unknown';
-    entries.push({ name, weight, goal, note, dateKey });
+    entries.push({
+      name,
+      weight: hasWeight ? weightNum : null,
+      goal,
+      note,
+      dateKey,
+      type: hasWeight ? 'checkin' : 'comment',
+    });
   });
   return entries;
 }
@@ -253,7 +511,7 @@ function dateLabelOf(key){
 }
 function buildDailyRecords(entries){
   const map = {};
-  entries.forEach(e=>{
+  entries.filter(e=>e.type==='checkin').forEach(e=>{
     const key = e.dateKey || 'unknown';
     if(!map[key]) map[key] = {};
     map[key][e.name] = e.weight;
@@ -267,13 +525,46 @@ function buildDailyRecords(entries){
 function computeParticipants(entries){
   const order = [];
   const seen = {};
-  entries.forEach(e=>{
+  entries.filter(e=>e.type==='checkin').forEach(e=>{
     if(!seen[e.name]){ seen[e.name] = true; order.push(e.name); }
   });
   return order.map((name,i)=> ({ name, color: COLORS[i % COLORS.length] }));
 }
 function entriesFor(entries, name){
-  return entries.filter(e=>e.name===name);
+  return entries.filter(e=>e.name===name && e.type==='checkin');
+}
+
+// Replays check-ins in order and detects when someone's ranking (by % lost)
+// jumps above a person they were previously behind — an "overtake" event.
+function computeOvertakes(entries){
+  const events = [];
+  const soFar = [];
+  const rankOf = (list)=>{
+    const names = [];
+    const seen = {};
+    list.forEach(e=>{ if(!seen[e.name]){ seen[e.name]=true; names.push(e.name); } });
+    return names.map(name=>{
+      const es = list.filter(e=>e.name===name);
+      const s = es[0].weight, c = es[es.length-1].weight;
+      return { name, val: s ? ((s-c)/s)*100 : 0 };
+    }).sort((a,b)=>b.val-a.val).map(x=>x.name);
+  };
+  entries.forEach((e, idx)=>{
+    if(e.type!=='checkin') return;
+    const before = rankOf(soFar);
+    soFar.push(e);
+    const after = rankOf(soFar);
+    const iB = before.indexOf(e.name);
+    const iA = after.indexOf(e.name);
+    if(iB > -1 && iA > -1 && iA < iB){
+      before.forEach(n=>{
+        if(n !== e.name && before.indexOf(n) < iB && after.indexOf(n) > iA){
+          events.push({ srcIdx: idx, a: e.name, b: n });
+        }
+      });
+    }
+  });
+  return events;
 }
 function currentWeight(entries, name){
   const es = entriesFor(entries, name);
@@ -404,6 +695,20 @@ function checkGoalCelebration(name, wasReached){
   }
 }
 
+function submitComment(name, msg){
+  name = (name||'').trim().slice(0,20);
+  msg = (msg||'').trim().slice(0,200);
+  if(!name || !msg){ showToast('請輸入名字和留言內容'); return; }
+  document.getElementById('f_name').value = name;
+  document.getElementById('f_weight').value = ''; // blank weight = comment-only, not a weigh-in
+  document.getElementById('f_goal').value = '';
+  document.getElementById('f_note').value = msg;
+  document.getElementById('gform').submit();
+  showToast('留言送出中…');
+  setTimeout(()=> loadData(false), 4000);
+  setTimeout(()=> loadData(false), 9000);
+}
+
 function buildShell(){
   root.innerHTML = `
     <div class="toast" id="toast"></div>
@@ -430,7 +735,13 @@ function buildShell(){
     </header>
 
     <section class="pulse" id="pulse">載入中...</section>
+    <div class="quote-banner" id="quoteBanner"></div>
     <section class="podium" id="podium"></section>
+
+    <section class="card roast-card">
+      <h2>🔥 本日毒舌講評</h2>
+      <div id="roastList"></div>
+    </section>
 
     <section class="card">
       <h2>打卡回報</h2>
@@ -467,7 +778,23 @@ function buildShell(){
 
     <section class="card">
       <h2>擂台動態</h2>
+      <form data-action="submit-comment" class="comment-form">
+        <input name="name" type="text" list="nameList" maxlength="20" required placeholder="參賽者名字">
+        <input name="msg" type="text" maxlength="200" required placeholder="嗆一下隊友、放個話...">
+        <button type="submit" class="btn">發送</button>
+      </form>
       <div id="feedList"></div>
+    </section>
+
+    <section class="card">
+      <h2>📣 觀眾應援區</h2>
+      <p class="hint" style="margin:-4px 0 12px">沒參賽也能留言！加油、看熱鬧、預測誰會奪冠都歡迎。</p>
+      <form data-action="submit-cheer" class="comment-form">
+        <input name="name" type="text" maxlength="20" required placeholder="你的名字">
+        <input name="msg" type="text" maxlength="200" required placeholder="幫選手加油打氣...">
+        <button type="submit" class="btn">發送</button>
+      </form>
+      <div id="cheerList"></div>
     </section>
 
     <footer>
@@ -485,22 +812,108 @@ function handleClick(e){
   if(btn.dataset.action === 'refresh') loadData(true);
 }
 function handleSubmit(e){
-  const form = e.target.closest('form[data-action="submit-checkin"]');
+  const form = e.target.closest('form[data-action]');
   if(!form) return;
   e.preventDefault();
   const fd = new FormData(form);
-  submitCheckin(fd.get('name'), fd.get('weight'), fd.get('goal'), fd.get('note'));
+  if(form.dataset.action === 'submit-checkin'){
+    submitCheckin(fd.get('name'), fd.get('weight'), fd.get('goal'), fd.get('note'));
+  } else if(form.dataset.action === 'submit-comment' || form.dataset.action === 'submit-cheer'){
+    submitComment(fd.get('name'), fd.get('msg'));
+  }
   form.reset();
 }
 
 function renderAll(){
   renderPulse();
+  renderQuote();
   renderPodium();
+  renderRoast();
   renderNameList();
   renderLeaderboard();
   renderChart();
   renderDailyTable();
   renderFeed();
+  renderCheers();
+}
+
+function renderCheers(){
+  const el = document.getElementById('cheerList');
+  if(!el) return;
+  const isParticipant = (name)=> state.participants.some(p=>p.name===name);
+  const cheers = state.entries.filter(e=> e.type==='comment' && !isParticipant(e.name)).slice().reverse();
+  if(!cheers.length){
+    el.innerHTML = `<p class="empty">還沒有觀眾留言，把網址分享給親友團吧！</p>`;
+    return;
+  }
+  el.innerHTML = cheers.slice(0,40).map(c=>`
+    <div class="feed-item">
+      <span class="dot" style="background:var(--ink-faint)"></span>
+      <div class="feed-body">
+        <div class="feed-line comment">📣 <b>${escapeHtml(c.name)}</b>： ${escapeHtml(c.note)}</div>
+        ${c.dateKey && c.dateKey!=='unknown' ? `<div class="feed-meta-sm">${dateLabelOf(c.dateKey)}</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderQuote(){
+  const el = document.getElementById('quoteBanner');
+  if(!el) return;
+  const days = Math.max(0, Math.floor((new Date(COMP_END+'T23:59:59').getTime() - Date.now())/86400000));
+  const q = seededPick(ROASTS.generic, todaySeed(), 'banner');
+  el.innerHTML = `「${escapeHtml(fillTpl(q, { days }))}」`;
+}
+
+function renderRoast(){
+  const el = document.getElementById('roastList');
+  if(!el) return;
+  if(!state.participants.length){
+    el.innerHTML = `<p class="empty">等大家開始打卡，毒舌評論員就會上工。</p>`;
+    return;
+  }
+  const seed = todaySeed();
+  const rn = rankedNames();
+  const cands = [];
+
+  state.participants.forEach(p=>{
+    const es = entriesFor(state.entries, p.name);
+    if(!es.length) return;
+    const last = es[es.length-1];
+    const gap = (last.dateKey && last.dateKey !== 'unknown')
+      ? Math.floor((Date.now() - new Date(last.dateKey+'T00:00:00').getTime())/86400000)
+      : null;
+    if(gap != null && gap >= 3){
+      cands.push({ pri:1, cat:'missing', vars:{ name:p.name, days:gap }, salt:p.name });
+      return; // 失聯優先，其他情境先不鞭
+    }
+    if(es.length >= 2 && gap != null && gap <= 2){
+      const diff = +(es[es.length-2].weight - last.weight).toFixed(1);
+      if(diff < -0.05){
+        cands.push({ pri:2, cat:'gained', vars:{ name:p.name, kg:Math.abs(diff).toFixed(1) }, salt:p.name });
+      }
+    }
+    if(es.length >= 3){
+      const w3 = es.slice(-3).map(x=>x.weight);
+      if(Math.max(...w3) - Math.min(...w3) < 0.15){
+        cands.push({ pri:3, cat:'plateau', vars:{ name:p.name }, salt:p.name });
+      }
+    }
+  });
+
+  if(rn.length >= 2) cands.push({ pri:4, cat:'champion', vars:{ name:rn[0] }, salt:'champ' });
+  if(rn.length >= 3) cands.push({ pri:5, cat:'lastplace', vars:{ name:rn[rn.length-1] }, salt:'last' });
+  const totalLost = state.participants.reduce((s,p)=>{
+    const sw = startWeight(state.entries, p.name), cw = currentWeight(state.entries, p.name);
+    return s + Math.max(0, (sw||0) - (cw||0));
+  }, 0);
+  if(totalLost > 0) cands.push({ pri:6, cat:'team', vars:{ total: totalLost.toFixed(1), n: state.participants.length }, salt:'team' });
+
+  cands.sort((a,b)=>a.pri-b.pri);
+  const picks = cands.slice(0,4).map(c=>{
+    const tpl = seededPick(ROASTS[c.cat], seed, c.salt);
+    return `<div class="roast-item">${escapeHtml(fillTpl(tpl, c.vars))}</div>`;
+  });
+  el.innerHTML = picks.length ? picks.join('') : `<p class="empty">今天大家表現良好，評論員無話可說（明天再來）。</p>`;
 }
 
 function renderPulse(){
@@ -648,18 +1061,49 @@ function renderDailyTable(){
 function renderFeed(){
   const el = document.getElementById('feedList');
   if(!state.entries.length){ el.innerHTML = `<p class="empty">還沒有動態，打第一卡搶頭香！</p>`; return; }
+  const overtakes = computeOvertakes(state.entries);
+  const otByIdx = {};
+  overtakes.forEach(o=>{ (otByIdx[o.srcIdx] = otByIdx[o.srcIdx] || []).push(o); });
+
   const perName = {};
-  const items = state.entries.map(e=>{
-    const prevList = perName[e.name] || [];
-    const prevWeight = prevList.length ? prevList[prevList.length-1] : null;
-    const diff = prevWeight != null ? +(prevWeight - e.weight).toFixed(1) : null;
-    prevList.push(e.weight);
-    perName[e.name] = prevList;
-    const newLow = prevList.length > 1 && e.weight < Math.min(...prevList.slice(0,-1));
-    return { ...e, diff, newLow };
-  }).reverse();
-  const colorOf = (name)=> (state.participants.find(p=>p.name===name)||{}).color || '#999';
+  const items = [];
+  const isParticipant = (name)=> state.participants.some(p=>p.name===name);
+  state.entries.forEach((e, idx)=>{
+    if(e.type !== 'checkin'){
+      if(isParticipant(e.name)) items.push({ ...e, diff: null, newLow: false });
+      // spectator comments are rendered in the cheer section instead
+    } else {
+      const prevList = perName[e.name] || [];
+      const prevWeight = prevList.length ? prevList[prevList.length-1] : null;
+      const diff = prevWeight != null ? +(prevWeight - e.weight).toFixed(1) : null;
+      prevList.push(e.weight);
+      perName[e.name] = prevList;
+      const newLow = prevList.length > 1 && e.weight < Math.min(...prevList.slice(0,-1));
+      items.push({ ...e, diff, newLow });
+    }
+    (otByIdx[idx] || []).forEach(o=>{
+      items.push({ type:'overtake', a:o.a, b:o.b, salt:o.a+'>'+o.b+'#'+idx });
+    });
+  });
+  items.reverse();
+
+  const colorOf = (name)=> (state.participants.find(p=>p.name===name)||{}).color || '#9AA3B2';
   el.innerHTML = items.slice(0,60).map(item=>{
+    if(item.type === 'overtake'){
+      const tpl = seededPick(ROASTS.overtake, todaySeed(), item.salt);
+      return `<div class="feed-item overtake-item">
+        <span class="ot-icon">⚡</span>
+        <div class="feed-body"><div class="feed-line overtake">${escapeHtml(fillTpl(tpl, { a:item.a, b:item.b }))}</div></div>
+      </div>`;
+    }
+    if(item.type !== 'checkin'){
+      return `<div class="feed-item">
+        <span class="dot" style="background:${colorOf(item.name)}"></span>
+        <div class="feed-body">
+          <div class="feed-line comment">💬 <b>${escapeHtml(item.name)}</b>： ${escapeHtml(item.note)}</div>
+        </div>
+      </div>`;
+    }
     const diffText = item.diff==null ? '首次紀錄' : (item.diff>0 ? `↓ ${item.diff.toFixed(1)} kg` : item.diff<0 ? `↑ ${Math.abs(item.diff).toFixed(1)} kg` : '持平');
     const tag = item.newLow ? `<span class="feed-tag good">🏆 創新低</span>` : '';
     return `<div class="feed-item">
