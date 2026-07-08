@@ -545,34 +545,52 @@ function percentLost(entries, name){
   if(s == null || c == null || !s) return 0;
   return ((s - c) / s) * 100;
 }
-function percentLabel(val){
-  if(Math.abs(val) < 0.05) return {text:'持平', cls:'pl-flat'};
-  if(val > 0) return {text:`↓ ${val.toFixed(1)}%`, cls:'pl-good'};
-  return {text:`↑ ${Math.abs(val).toFixed(1)}%`, cls:'pl-warn'};
-}
 function goalWeightFor(entries, name){
   const es = entriesFor(entries, name).filter(e=> e.goal != null);
   return es.length ? es[es.length-1].goal : null; // most recently submitted goal
 }
+// 目標體重高於起始體重 = 增肌組（往上才是進步）
+function isGainer(entries, name){
+  const g = goalWeightFor(entries, name);
+  const s = startWeight(entries, name);
+  return g != null && s != null && g > s;
+}
+// 統一計分：朝自己目標方向的變化%（減重組看下降、增肌組看上升）
+function directionalScore(entries, name){
+  const raw = percentLost(entries, name);
+  return isGainer(entries, name) ? -raw : raw;
+}
+function progressLabel(entries, name){
+  const s = startWeight(entries, name), c = currentWeight(entries, name);
+  if(s == null || c == null || !s) return {text:'—', cls:'pl-flat'};
+  const change = ((c - s) / s) * 100; // 實際變化，+ 為增重
+  if(Math.abs(change) < 0.05) return {text:'持平', cls:'pl-flat'};
+  const arrow = change > 0 ? '↑' : '↓';
+  const good = directionalScore(entries, name) > 0;
+  return { text:`${arrow} ${Math.abs(change).toFixed(1)}%`, cls: good ? 'pl-good' : 'pl-warn' };
+}
 function isGoalReached(entries, name){
   const g = goalWeightFor(entries, name);
   const c = currentWeight(entries, name);
-  return g != null && c != null && c <= g;
+  if(g == null || c == null) return false;
+  return isGainer(entries, name) ? c >= g : c <= g;
 }
 function goalLineFor(entries, name){
   const g = goalWeightFor(entries, name);
   if(g == null) return '';
   if(isGoalReached(entries, name)) return `<div class="goal-line goal-hit">🎯 已達標！(目標 ${fmtW(g)} kg)</div>`;
-  const diff = (currentWeight(entries, name) - g).toFixed(1);
-  return `<div class="goal-line">🎯 距目標還差 ${diff} kg</div>`;
+  const diff = Math.abs(currentWeight(entries, name) - g).toFixed(1);
+  const verb = isGainer(entries, name) ? '還要增' : '還差';
+  return `<div class="goal-line">🎯 距目標${verb} ${diff} kg</div>`;
 }
 function badgesFor(entries, name, rankedList){
   const es = entriesFor(entries, name);
   const list = [];
+  if(isGainer(entries, name)) list.push({icon:'🏋️', label:'增肌組'});
   if(es.length >= 1) list.push({icon:'🚀', label:'已起跑'});
   if(es.length >= 3) list.push({icon:'🔥', label:'連續打卡'});
-  const pl = percentLost(entries, name);
-  if(pl >= 5) list.push({icon:'💪', label:'減重 5% 達成'});
+  const score = directionalScore(entries, name);
+  if(score >= 5) list.push({icon:'💪', label:'進度 5% 達成'});
   if(isGoalReached(entries, name)) list.push({icon:'🎯', label:'達成目標體重'});
   if(rankedList.length && rankedList[0] === name && es.length > 0) list.push({icon:'👑', label:'目前擂主'});
   return list;
@@ -718,7 +736,7 @@ function buildShell(){
           <datalist id="nameList"></datalist>
         </div>
         <div class="form-row"><label>今天體重 (kg)</label><input name="weight" type="number" step="0.1" min="20" max="400" required></div>
-        <div class="form-row"><label>目標體重 (kg)・第一次填就好，之後留空即可</label><input name="goal" type="number" step="0.1" min="20" max="400" placeholder="設定一次，之後可以不填"></div>
+        <div class="form-row"><label>目標體重 (kg)・第一次填就好（想增肌的人請填比現在高，系統會自動歸入增肌組）</label><input name="goal" type="number" step="0.1" min="20" max="400" placeholder="設定一次，之後可以不填"></div>
         <div class="form-row"><label>備註・選填</label><input name="note" type="text" maxlength="140" placeholder="今天狀況如何？"></div>
         <button type="submit" class="btn btn-primary">打卡回報</button>
       </form>
@@ -759,7 +777,7 @@ function buildShell(){
     </section>
 
     <footer>
-      資料來自大家共用的 Google 表單，任何人有連結就能打卡，不需要任何帳號 · 封榜日 2026/10/31 · 排名依體重下降百分比計算<br>
+      資料來自大家共用的 Google 表單，任何人有連結就能打卡，不需要任何帳號 · 封榜日 2026/10/31 · 排名依「朝目標方向的變化%」計算（減重組看下降、🏋️增肌組看上升）<br>
       更新後資料同步可能需要一點時間，看到資料沒變先按左上角 🔄 重新整理看看
     </footer>
   `;
@@ -810,13 +828,16 @@ function renderFeed(){
     const diff = prevWeight != null ? +(prevWeight - e.weight).toFixed(1) : null;
     prevList.push(e.weight);
     perName[e.name] = prevList;
-    const newLow = prevList.length > 1 && e.weight < Math.min(...prevList.slice(0,-1));
-    return { ...e, diff, newLow };
+    const gainer = isGainer(state.entries, e.name);
+    const newBest = prevList.length > 1 && (gainer
+      ? e.weight > Math.max(...prevList.slice(0,-1))
+      : e.weight < Math.min(...prevList.slice(0,-1)));
+    return { ...e, diff, newBest, gainer };
   }).reverse();
   const colorOf = (name)=> (state.participants.find(p=>p.name===name)||{}).color || '#9AA3B2';
   el.innerHTML = items.slice(0,50).map(item=>{
     const diffText = item.diff==null ? '首次紀錄' : (item.diff>0 ? `↓ ${item.diff.toFixed(1)} kg` : item.diff<0 ? `↑ ${Math.abs(item.diff).toFixed(1)} kg` : '持平');
-    const tag = item.newLow ? `<span class="feed-tag good">🏆 創新低</span>` : '';
+    const tag = item.newBest ? `<span class="feed-tag good">🏆 ${item.gainer ? '創新高' : '創新低'}</span>` : '';
     const dateLbl = item.dateKey && item.dateKey!=='unknown' ? `<span class="feed-date">${dateLabelOf(item.dateKey)}</span>` : '';
     return `<div class="feed-item">
       <span class="dot" style="background:${colorOf(item.name)}"></span>
@@ -870,11 +891,11 @@ function renderRoast(){
   const rn = rankedNames();
   const cands = [];
 
-  // 頭號目標：整場比賽下來反而變胖的最後一名，每天必鞭
+  // 頭號目標：整場比賽下來反而變胖的最後一名（增肌組除外），每天必鞭
   if(rn.length){
     const worst = rn[rn.length-1];
     const sw = startWeight(state.entries, worst), cw = currentWeight(state.entries, worst);
-    if(sw != null && cw != null && cw > sw + 0.05){
+    if(!isGainer(state.entries, worst) && sw != null && cw != null && cw > sw + 0.05){
       cands.push({ pri:0, cat:'gained', vars:{ name:worst, kg:(cw-sw).toFixed(1) }, salt:worst+'-worst' });
     }
   }
@@ -890,7 +911,7 @@ function renderRoast(){
       cands.push({ pri:1, cat:'missing', vars:{ name:p.name, days:gap }, salt:p.name });
       return; // 失聯優先，其他情境先不鞭
     }
-    if(es.length >= 2 && gap != null && gap <= 2){
+    if(es.length >= 2 && gap != null && gap <= 2 && !isGainer(state.entries, p.name)){
       const diff = +(es[es.length-2].weight - last.weight).toFixed(1);
       if(diff < -0.05){
         cands.push({ pri:2, cat:'gained', vars:{ name:p.name, kg:Math.abs(diff).toFixed(1) }, salt:p.name });
@@ -907,6 +928,7 @@ function renderRoast(){
   if(rn.length >= 2) cands.push({ pri:4, cat:'champion', vars:{ name:rn[0] }, salt:'champ' });
   if(rn.length >= 3) cands.push({ pri:5, cat:'lastplace', vars:{ name:rn[rn.length-1] }, salt:'last' });
   const totalLost = state.participants.reduce((s,p)=>{
+    if(isGainer(state.entries, p.name)) return s;
     const sw = startWeight(state.entries, p.name), cw = currentWeight(state.entries, p.name);
     return s + Math.max(0, (sw||0) - (cw||0));
   }, 0);
@@ -934,22 +956,33 @@ function renderPulse(){
   if(state.error){ el.innerHTML = `<div class="pulse-item error-text">${escapeHtml(state.error)}</div>`; return; }
   if(!state.participants.length){ el.innerHTML = `<div class="pulse-item">還沒有人打卡，快來當第一個！</div>`; return; }
   const totalCheckins = state.entries.length;
-  const totalLost = state.participants.reduce((s,p)=>{
+  let totalLost = 0, totalGainedByGainers = 0, gainerCount = 0;
+  state.participants.forEach(p=>{
     const sw = startWeight(state.entries, p.name), cw = currentWeight(state.entries, p.name);
-    return s + Math.max(0, (sw||0) - (cw||0));
-  }, 0);
+    if(sw == null || cw == null) return;
+    if(isGainer(state.entries, p.name)){
+      gainerCount++;
+      totalGainedByGainers += Math.max(0, cw - sw);
+    } else {
+      totalLost += Math.max(0, sw - cw);
+    }
+  });
+  const gainerPart = gainerCount > 0
+    ? `<div class="pulse-dot">·</div><div class="pulse-item">增肌組共增 <b>${totalGainedByGainers.toFixed(1)}</b> kg</div>`
+    : '';
   el.innerHTML = `
     <div class="pulse-item"><b>${state.participants.length}</b> 位選手</div>
     <div class="pulse-dot">·</div>
     <div class="pulse-item"><b>${totalCheckins}</b> 次打卡</div>
     <div class="pulse-dot">·</div>
     <div class="pulse-item">團隊共減 <b>${totalLost.toFixed(1)}</b> kg</div>
+    ${gainerPart}
   `;
 }
 
 function rankedNames(){
   return [...state.participants]
-    .sort((a,b)=> percentLost(state.entries,b.name) - percentLost(state.entries,a.name))
+    .sort((a,b)=> directionalScore(state.entries,b.name) - directionalScore(state.entries,a.name))
     .map(p=>p.name);
 }
 
@@ -963,7 +996,7 @@ function renderPodium(){
     const rank = ranked.indexOf(p)+1;
     const medal = rank===1?'🥇':rank===2?'🥈':'🥉';
     const hClass = rank===1?'h1':rank===2?'h2':'h3';
-    const pl = percentLabel(percentLost(state.entries, p.name));
+    const pl = progressLabel(state.entries, p.name);
     return `<div class="podium-block ${hClass}" style="--pc:${p.color}">
       <div class="pb-medal">${medal}</div>
       <div class="pb-name">${escapeHtml(p.name)}</div>
@@ -984,7 +1017,7 @@ function renderLeaderboard(){
   el.innerHTML = rn.map((name,i)=>{
     const p = state.participants.find(x=>x.name===name);
     const es = entriesFor(state.entries, name);
-    const pl = percentLabel(percentLost(state.entries, name));
+    const pl = progressLabel(state.entries, name);
     const bd = badgesFor(state.entries, name, rn).map(b=>`<span class="badge-chip" title="${escapeHtml(b.label)}">${b.icon}</span>`).join('');
     return `
     <div class="lb-row">
@@ -1020,7 +1053,8 @@ function renderChart(){
     const es = entriesFor(state.entries, p.name);
     const s = es.length ? es[0].weight : null;
     const pts = es.map((e,i)=>{
-      const val = s ? ((s - e.weight)/s)*100 : 0;
+      const raw = s ? ((s - e.weight)/s)*100 : 0;
+      const val = isGainer(state.entries, p.name) ? -raw : raw;
       minP = Math.min(minP,val); maxP = Math.max(maxP,val);
       return { i, val };
     });
