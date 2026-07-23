@@ -95,6 +95,22 @@
   .roast-item:last-child{ border-bottom:none; }
   .feed-meta-sm{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
   .feed-date{ font-size:11.5px; color:var(--ink-faint); margin-left:4px; }
+  .streak-head{
+    display:grid; grid-template-columns:44px 1fr 90px 100px; gap:10px;
+    font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;
+    padding:0 4px 8px; border-bottom:1px solid var(--line);
+  }
+  .streak-row{
+    display:grid; grid-template-columns:44px 1fr 90px 100px; gap:10px; align-items:center;
+    padding:11px 4px; border-bottom:1px solid var(--line);
+  }
+  .streak-row:last-child{ border-bottom:none; }
+  .streak-rank{ font-family:var(--font-mono); font-weight:700; color:var(--ink-soft); font-size:15px; }
+  .streak-name{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14.5px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .streak-best{ font-family:var(--font-mono); font-weight:700; font-size:14.5px; }
+  .streak-cur{ font-size:13px; }
+  .streak-live{ color:var(--warn); font-weight:700; }
+  .streak-broken{ color:var(--ink-faint); }
   .form-row label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
   input[type=text], input[type=number]{
     width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px;
@@ -467,8 +483,8 @@ function processGvizResponse(json){
   const rows = (json.table && json.table.rows) || [];
   const idxByLabel = {};
   cols.forEach((c,i)=>{ if(c.label) idxByLabel[c.label.trim()] = i; });
-  const iTs = idxByLabel['時間戳記'] ?? 0;
-  const iName = idxByLabel['你的名字'] ?? 1;
+  const iTs = idxByLabel['時間戳記'] ?? idxByLabel['Timestamp'] ?? 0;
+  const iName = idxByLabel['暱稱'] ?? idxByLabel['你的名字'] ?? 1;
   const iWeight = idxByLabel['今天體重 (kg)'] ?? 2;
   const iGoal = (idxByLabel['目標體重 (kg)'] ?? -1);
   const iNote = idxByLabel['備註'] ?? (cols.length - 1);
@@ -731,8 +747,8 @@ function buildShell(){
       <h2>打卡回報</h2>
       <form data-action="submit-checkin" class="checkin-form">
         <div class="form-row">
-          <label>你的名字</label>
-          <input name="name" type="text" list="nameList" maxlength="20" required placeholder="第一次來？打你的名字就好">
+          <label>暱稱・建議不要用真名，這個網頁是公開的</label>
+          <input name="name" type="text" list="nameList" maxlength="20" required placeholder="取個好記的暱稱，之後都用同一個">
           <datalist id="nameList"></datalist>
         </div>
         <div class="form-row"><label>今天體重 (kg)</label><input name="weight" type="number" step="0.1" min="20" max="400" required></div>
@@ -748,6 +764,14 @@ function buildShell(){
         <div>排名</div><div>選手</div><div>體重</div><div>幅度</div><div>趨勢</div><div>狀態</div>
       </div>
       <div id="leaderboardList"></div>
+    </section>
+
+    <section class="card">
+      <h2>🔥 連續打卡排行</h2>
+      <div class="streak-head">
+        <div>排名</div><div>選手</div><div>最高紀錄</div><div>目前連續</div>
+      </div>
+      <div id="streakList"></div>
     </section>
 
     <section class="card">
@@ -769,7 +793,7 @@ function buildShell(){
       <h2>📣 應援留言板</h2>
       <p class="hint" style="margin:-4px 0 12px">參賽者、觀眾都歡迎留言！加油、嗆聲、預測誰會奪冠都可以。</p>
       <form data-action="submit-cheer" class="comment-form">
-        <input name="name" type="text" maxlength="20" required placeholder="你的名字">
+        <input name="name" type="text" maxlength="20" required placeholder="你的暱稱">
         <input name="msg" type="text" maxlength="200" required placeholder="留下你的一句話...">
         <button type="submit" class="btn">發送</button>
       </form>
@@ -810,10 +834,60 @@ function renderAll(){
   renderRoast();
   renderNameList();
   renderLeaderboard();
+  renderStreaks();
   renderChart();
   renderDailyTable();
   renderFeed();
   renderCheers();
+}
+
+// 連續打卡計算：同一天多次打卡算一天
+function streakStats(entries, name){
+  const days = [...new Set(entriesFor(entries, name).map(e=>e.dateKey).filter(k=>k && k!=='unknown'))].sort();
+  if(!days.length) return { best: 0, current: 0 };
+  const toMs = k => new Date(k+'T00:00:00').getTime();
+  let best = 1, run = 1;
+  for(let i=1;i<days.length;i++){
+    const gap = Math.round((toMs(days[i]) - toMs(days[i-1])) / 86400000);
+    run = (gap === 1) ? run + 1 : 1;
+    if(run > best) best = run;
+  }
+  // 目前連續：最後一次打卡在今天或昨天才算「連續中」，往回數
+  const todayKey = new Date().toLocaleDateString('en-CA');
+  const gapFromToday = Math.round((new Date(todayKey+'T00:00:00').getTime() - toMs(days[days.length-1])) / 86400000);
+  let current = 0;
+  if(gapFromToday <= 1){
+    current = 1;
+    for(let i=days.length-1;i>0;i--){
+      const gap = Math.round((toMs(days[i]) - toMs(days[i-1])) / 86400000);
+      if(gap === 1) current++;
+      else break;
+    }
+  }
+  return { best, current };
+}
+
+function renderStreaks(){
+  const el = document.getElementById('streakList');
+  if(!el) return;
+  if(!state.participants.length){ el.innerHTML = `<p class="empty">還沒有選手打卡。</p>`; return; }
+  const rows = state.participants.map(p=>{
+    const s = streakStats(state.entries, p.name);
+    const cc = entriesFor(state.entries, p.name).length;
+    return { p, ...s, cc };
+  }).sort((a,b)=> b.best - a.best || b.current - a.current || b.cc - a.cc);
+  el.innerHTML = rows.map((r,i)=>{
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+    const curText = r.current > 0
+      ? `<span class="streak-live">🔥 ${r.current} 天</span>`
+      : `<span class="streak-broken">中斷</span>`;
+    return `<div class="streak-row">
+      <div class="streak-rank">${medal}</div>
+      <div class="streak-name"><span class="dot" style="background:${r.p.color}"></span>${escapeHtml(r.p.name)}</div>
+      <div class="streak-best">${r.best} 天</div>
+      <div class="streak-cur">${curText}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderFeed(){
